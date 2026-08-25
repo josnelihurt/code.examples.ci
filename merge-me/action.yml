@@ -1,0 +1,45 @@
+name: merge-me
+description: >-
+  Deterministic, label-driven merge automation for stacked-PR repositories.
+  Labeling a PR merge-me is standing intent ("merge when green"), not a command:
+  every evaluation checks the label, the PR's checks and its mergeability, then
+  merges (the asynchronous merge endpoint, landing every stack member below the
+  labeled PR atomically), arms GitHub's server-side auto-merge, or holds. Every
+  evaluation is triggered by a real event — nothing runs on a timer.
+inputs:
+  pr:
+    description: PR number to evaluate (required unless all is true)
+    required: false
+    default: ''
+  all:
+    description: Evaluate every open PR labeled merge-me (the manual escape hatch)
+    required: false
+    default: 'false'
+  disarm:
+    description: Set true when the merge-me label was removed — disarm armed auto-merge
+    required: false
+    default: 'false'
+  wait-minutes:
+    description: Bounded wait for pending checks before holding for the next event
+    required: false
+    default: '15'
+
+runs:
+  using: composite
+  steps:
+    - name: Evaluate the labeled PR
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        args=()
+        if [[ "${{ inputs.disarm }}" == 'true' ]]; then
+          args+=('${{ inputs.pr }}' --disarm)
+        elif [[ "${{ inputs.all }}" == 'true' ]]; then
+          args+=(--all)
+        else
+          args+=('${{ inputs.pr }}')
+        fi
+        args+=(--wait-minutes '${{ inputs.wait-minutes }}')
+        bash "${GITHUB_ACTION_PATH}/scripts/merge-me.sh" "${args[@]}"

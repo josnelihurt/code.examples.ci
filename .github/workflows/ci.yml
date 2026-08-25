@@ -1,0 +1,89 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  conventions:
+    name: conventions (branch names + commit messages)
+    runs-on: ubuntu-latest
+    permissions:
+      # The PR's commit list comes from the pulls API.
+      contents: read
+      pull-requests: read
+    steps:
+      # Full history for the push-to-main range (event.before..HEAD below); the
+      # PR path reads no local history at all.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Check branch name
+        if: github.event_name == 'pull_request'
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: ./scripts/check-conventions.sh --branch "${HEAD_REF}"
+
+      - name: Check commit subjects and PR title
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          if [[ "${EVENT_NAME}" == "pull_request" ]]; then
+            # GitHub's own list of the PR's commits. Stacked layers retargeted after
+            # a lower PR merges carry that layer as a commit with the squash subject
+            # ("type: ... (#N)") — the server-side rebase puts it on the branch — so
+            # such artifacts are skipped rather than failed; they are the base
+            # branch's history, not this PR's contribution.
+            subjects="$(mktemp)"
+            gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/commits" \
+              --jq '.[].commit.message | split("\n")[0]' > "${subjects}"
+            ./scripts/check-conventions.sh --subjects-file "${subjects}" --skip-pr-numbers --title "${PR_TITLE}"
+            rm -f "${subjects}"
+          else
+            # Push to main: the new commits are squash results ("type: ... (#N)").
+            if [[ "${BEFORE_SHA}" =~ ^0+$ ]]; then
+              BEFORE_SHA="$(git rev-parse HEAD^)"
+            fi
+            ./scripts/check-conventions.sh --range "${BEFORE_SHA}..HEAD" --allow-pr-number
+          fi
+
+  validate:
+    name: validate (shellcheck + self-test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Install shellcheck
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+
+      - name: shellcheck + syntax
+        run: |
+          shellcheck merge-me/scripts/merge-me.sh scripts/check-conventions.sh
+          bash -n merge-me/scripts/merge-me.sh scripts/check-conventions.sh
+
+      # The script's usage path is deliberately offline-safe (argument parsing
+      # happens before any gh call): no arguments must exit 2, never hang or
+      # authenticate. This is the contract the composite action relies on.
+      - name: Offline usage self-test
+        run: |
+          set +e
+          ./merge-me/scripts/merge-me.sh >/dev/null 2>&1
+          rc=$?
+          set -e
+          [[ "${rc}" -eq 2 ]] || { echo "expected usage exit 2, got ${rc}"; exit 1; }
+          echo "usage path exits 2 as documented"
