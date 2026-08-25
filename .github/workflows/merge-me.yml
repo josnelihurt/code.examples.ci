@@ -41,6 +41,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
+      # Local actions (./merge-me) read from the workspace, so the wrapper checks
+      # the repository out first; remote-ref consumers do not need this.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
       - uses: ./merge-me
         with:
           pr: ${{ github.event.pull_request.number }}
@@ -56,6 +60,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
       - name: Resolve the PR whose CI just completed
         id: resolve
         env:
@@ -86,6 +92,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
       - uses: ./merge-me
         with:
           pr: ${{ github.event.inputs.pr }}
