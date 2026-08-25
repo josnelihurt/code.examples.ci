@@ -88,7 +88,9 @@ jobs:
 
 No `actions/checkout` is needed — the action is self-contained. The `disarm` input
 covers the `unlabeled` trigger; `wait-minutes: '0'` evaluates instantly (used by the
-ci-completion arm, whose checks have already finished).
+ci-completion arm, whose checks have already finished); `dry-run: 'true'` evaluates
+and reports without merging, arming, or disarming anything — the smoke test for
+onboarding a new consumer with zero merge risk.
 
 ## The decision table
 
