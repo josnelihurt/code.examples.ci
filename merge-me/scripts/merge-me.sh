@@ -69,8 +69,11 @@ if [[ "${DISARM}" == true ]]; then
   exit 0
 fi
 
-REPO="$(gh repo view --json nameWithOwner --jq .nameWithOwner)"
-DEFAULT_BRANCH="$(gh repo view --json defaultBranchRef --jq .defaultBranchRef.name)"
+# No git repository exists in the action's workspace (and gh's git discovery
+# fails there even with GH_REPO set), so the repository comes from the runner's
+# GITHUB_REPOSITORY and everything else goes through explicit API calls.
+REPO="${GITHUB_REPOSITORY:?set GITHUB_REPOSITORY=owner/repo (Actions sets it; export it to run locally)}"
+DEFAULT_BRANCH="$(gh api "repos/${REPO}" --jq .default_branch)"
 
 # checks_state PR -> green | red | pending | none
 checks_state() {
