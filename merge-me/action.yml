@@ -23,6 +23,10 @@ inputs:
     description: Bounded wait for pending checks before holding for the next event
     required: false
     default: '15'
+  dry-run:
+    description: Evaluate and report without merging, arming, or disarming anything
+    required: false
+    default: 'false'
 
 runs:
   using: composite
@@ -45,4 +49,7 @@ runs:
           args+=('${{ inputs.pr }}')
         fi
         args+=(--wait-minutes '${{ inputs.wait-minutes }}')
+        if [[ "${{ inputs.dry-run }}" == 'true' ]]; then
+          args+=(--dry-run)
+        fi
         bash "${GITHUB_ACTION_PATH}/scripts/merge-me.sh" "${args[@]}"
