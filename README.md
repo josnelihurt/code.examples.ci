@@ -95,3 +95,14 @@ pending merge, the default-branch workflow's `workflow_run` arm may merge the st
 from branch heads it captured before the update — the net repository's first
 migration landed with a stale pin that way and needed a one-PR repin (#20 there).
 Land consumer pin changes before labeling, or expect the repin follow-up.
+
+## Onboarding a new consumer
+
+1. Copy this repository's own `.github/workflows/merge-me.yml` and delete the
+   `actions/checkout` steps plus the local-path comment — the consumer version
+   pins `josnelihurt/code.examples.ci/merge-me@<sha> # vN` and needs no checkout.
+2. Keep the workflow `name: merge-me` and the `ci` workflow_run target exactly —
+   the script's self-exclusion and re-evaluation key on them.
+3. Create the `merge-me` label (`0e8a16`) if the repository does not have it.
+4. Verify with a two-level docs stack: label the top layer only and watch both
+   squash-merge atomically.
