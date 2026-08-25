@@ -47,6 +47,12 @@ The opt-in local hooks (`.githooks/commit-msg`, `pre-push`) keep working through
 a thin per-repository shim that fetches this script at the `v1` tag via `gh` —
 one implementation, no copies to drift.
 
+One known edge: a `GITHUB_TOKEN` cannot merge a pull request that updates
+workflow files unless its app authored them (dependabot's action-pin bumps).
+`workflows` is not a grantable workflow-permission scope — attempting it makes
+GitHub refuse to parse the workflow entirely. Such PRs land by arming
+GitHub's server-side auto-merge with a human token: `gh pr merge <n> --squash --auto`.
+
 ## Consuming the merge-me action
 
 A consuming repository keeps a thin trigger-only workflow (`.github/workflows/merge-me.yml`)
@@ -69,7 +75,6 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  workflows: write
 concurrency:
   group: merge-me-${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || github.event.pull_request.number || github.event.inputs.pr || 'manual' }}
   cancel-in-progress: true

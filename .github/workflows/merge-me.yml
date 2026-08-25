@@ -24,13 +24,9 @@ on:
 
 # Ephemeral per-run token: no stored credentials, and it cannot bypass branch
 # protection — if that is ever added, revisit with a merge queue.
-# workflows: write lets the ephemeral token merge pull requests that update
-# workflow files (dependabot's action-pin bumps); the ruleset and the green
-# gate still control what may merge.
 permissions:
   contents: write
   pull-requests: write
-  workflows: write
 
 # One evaluation per PR (a newer event cancels the previous bounded wait); manual
 # runs without a PR input collapse onto themselves.
