@@ -137,6 +137,15 @@ merge() {
     -f merge_method=squash -f merge_action=default)"
   status="$(jq -r .status <<<"${resp}")"
   if [[ "${status}" == "merged" ]]; then printf '#%s merged\n' "$1"; return 0; fi
+  # The runner's GITHUB_TOKEN may not merge a PR that updates workflow files
+  # unless its app authored them — dependabot's action-pin bumps hit exactly
+  # this refusal. The server-side auto-merge path lands such PRs fine, so arm
+  # it and let GitHub merge the moment checks pass.
+  if jq -e '.details.message // "" | test("workflows permission")' <<<"${resp}" >/dev/null 2>&1 \
+    && arm_auto_merge "$1"; then
+    printf '#%s: direct merge refused (workflow-file permission) — auto-merge armed, GitHub merges when green\n' "$1"
+    return 0
+  fi
   uuid="$(jq -r '.details.uuid // empty' <<<"${resp}")"
   if [[ -z "${uuid}" ]]; then
     printf '#%s: merge request not accepted: %s\n' "$1" "${resp}" >&2
