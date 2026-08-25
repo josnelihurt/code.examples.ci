@@ -57,7 +57,14 @@ jobs:
           else
             # Push to main: the new commits are squash results ("type: ... (#N)").
             if [[ "${BEFORE_SHA}" =~ ^0+$ ]]; then
-              BEFORE_SHA="$(git rev-parse HEAD^)"
+              if git rev-parse --verify -q HEAD^ >/dev/null; then
+                BEFORE_SHA="$(git rev-parse HEAD^)"
+              else
+                # The first commit ever pushed to main has no parent: only HEAD's
+                # subject is new.
+                ./scripts/check-conventions.sh --title "$(git log -1 --format='%s')" --allow-pr-number
+                exit 0
+              fi
             fi
             ./scripts/check-conventions.sh --range "${BEFORE_SHA}..HEAD" --allow-pr-number
           fi
