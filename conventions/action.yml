@@ -1,0 +1,67 @@
+name: conventions
+description: >-
+  Branch-naming and commit-message rules for the code.examples repositories:
+  one canonical implementation behind every consuming repository's conventions
+  CI job. On pull requests it checks the branch name (with an optional
+  automation-branch exemption) and every commit subject plus the PR title; on
+  pushes to the default branch it checks the new commits' subjects (squash
+  results carry the " (#N)" suffix, which is allowed there).
+inputs:
+  branch-exempt-regex:
+    description: >-
+      ERE of branch names exempt from the naming rule (e.g. '^dependabot/' —
+      branches authored by automation whose names are not ours to choose).
+      Empty (default) exempts nothing.
+    required: false
+    default: ''
+
+# The consuming job must check out its repository with fetch-depth: 0 — the
+# push-to-main range mode reads local history (git log / rev-parse). The
+# pull_request mode reads no local history at all.
+runs:
+  using: composite
+  steps:
+    - name: Check branch names and commit subjects
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
+        EVENT_NAME: ${{ github.event_name }}
+        HEAD_REF: ${{ github.head_ref }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        PR_TITLE: ${{ github.event.pull_request.title }}
+        BEFORE_SHA: ${{ github.event.before }}
+        BRANCH_EXEMPT: ${{ inputs.branch-exempt-regex }}
+      run: |
+        set -euo pipefail
+        script="${GITHUB_ACTION_PATH}/scripts/check-conventions.sh"
+        if [[ "${EVENT_NAME}" == "pull_request" ]]; then
+          if [[ -n "${BRANCH_EXEMPT}" ]]; then
+            "${script}" --branch "${HEAD_REF}" --branch-exempt "${BRANCH_EXEMPT}"
+          else
+            "${script}" --branch "${HEAD_REF}"
+          fi
+          # GitHub's own list of the PR's commits. Stacked layers retargeted after
+          # a lower PR merges carry that layer as a commit with the squash subject
+          # ("type: ... (#N)") — the server-side rebase puts it on the branch — so
+          # such artifacts are skipped rather than failed; they are the base
+          # branch's history, not this PR's contribution.
+          subjects="$(mktemp)"
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/commits" \
+            --jq '.[].commit.message | split("\n")[0]' > "${subjects}"
+          "${script}" --subjects-file "${subjects}" --skip-pr-numbers --title "${PR_TITLE}"
+          rm -f "${subjects}"
+        else
+          # Push to the default branch: the new commits are squash results
+          # ("type: ... (#N)"). A zero event.before with no parent commit is the
+          # repository's first push ever — only HEAD's subject is new.
+          if [[ "${BEFORE_SHA}" =~ ^0+$ ]]; then
+            if git rev-parse --verify -q HEAD^ >/dev/null; then
+              BEFORE_SHA="$(git rev-parse HEAD^)"
+            else
+              "${script}" --title "$(git log -1 --format='%s')" --allow-pr-number
+              exit 0
+            fi
+          fi
+          "${script}" --range "${BEFORE_SHA}..HEAD" --allow-pr-number
+        fi
