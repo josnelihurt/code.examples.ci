@@ -1,0 +1,52 @@
+name: secrets-hygiene
+description: >-
+  Fails when a credential-literal pattern matches anywhere outside the
+  repository's explicit allowlist. The pattern and the allowlist are
+  per-repository knowledge and stay in the consuming workflow as inputs; the
+  mechanics (git grep with path exclusions, one loud failure listing every
+  hit) live here once. Rationale: a literal that exists only to be
+  copy-pasted is how scaffolding credentials leak into forks.
+inputs:
+  pattern:
+    description: Extended regular expression of the credential literals (passed to git grep -E).
+    required: true
+  exclude:
+    description: >-
+      One git-grep path-exclusion per line (without the leading ':!'), e.g.
+      'docs/dev-credentials.md' or 'tests/**'. Empty (default) excludes nothing.
+    required: false
+    default: ''
+  hint:
+    description: One-sentence failure hint naming where the literals belong.
+    required: false
+    default: 'These literals are only allowed inside the documented allowlist.'
+
+# The consuming job must check out its repository first (any depth — the grep
+# runs against the working tree, tracked files only).
+runs:
+  using: composite
+  steps:
+    - name: Fail on credential literals outside the allowlist
+      shell: bash
+      env:
+        PATTERN: ${{ inputs.pattern }}
+        EXCLUDE: ${{ inputs.exclude }}
+        HINT: ${{ inputs.hint }}
+      run: |
+        set -euo pipefail
+        excludes=()
+        while IFS= read -r line; do
+          [[ -n "${line}" ]] && excludes+=(":!${line}")
+        done <<< "${EXCLUDE}"
+        if (( ${#excludes[@]} == 0 )); then
+          hits="$(git grep -nE "${PATTERN}" || true)"
+        else
+          hits="$(git grep -nE "${PATTERN}" "${excludes[@]}" || true)"
+        fi
+        if [[ -n "${hits}" ]]; then
+          echo "Credential literals outside the allowlist:"
+          echo "${hits}"
+          echo "${HINT}"
+          exit 1
+        fi
+        echo "no hits for the credential pattern"

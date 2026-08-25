@@ -92,6 +92,27 @@ ci-completion arm, whose checks have already finished); `dry-run: 'true'` evalua
 and reports without merging, arming, or disarming anything — the smoke test for
 onboarding a new consumer with zero merge risk.
 
+## Consuming the secrets-hygiene action
+
+The pattern and the allowlist are the repository's own knowledge; the mechanics
+live here. The consuming job checks out (any depth) and states its rule once:
+
+```yaml
+  secrets-hygiene:
+    name: secrets hygiene (credential literals stay in the allowlist)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@<commit-sha> # v4
+      - uses: josnelihurt/code.examples.ci/secrets-hygiene@<commit-sha> # v1
+        with:
+          pattern: 'supersecret|readsecret'
+          exclude: |
+            **/*.test.ts
+            e2e/**
+            src/mocks/**
+          hint: 'These literals belong to the seed; here they live only in tests and fixtures.'
+```
+
 ## The decision table
 
 Every evaluation is triggered by a real event — the label, a push, a reopen, the ci
