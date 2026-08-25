@@ -17,8 +17,35 @@ and
 | Path | What it is |
 | --- | --- |
 | `merge-me/` | The `merge-me` composite action: `action.yml` + the canonical evaluation script |
-| `scripts/check-conventions.sh` | The branch-naming and commit-message rules shared with the consumers |
+| `conventions/` | The branch-naming and commit-message composite action behind every consuming repository's conventions job |
+| `secrets-hygiene/` | The credential-literal allowlist gate (pattern + exclusions as inputs) |
 | `.github/workflows/merge-me.yml` | This repository's own trigger wrapper — the self-hosting proof |
+
+## Consuming the conventions action
+
+The consuming repository's conventions job checks out with `fetch-depth: 0` and
+delegates everything to the action; repositories that host automation branches
+pass the exemption those branches need:
+
+```yaml
+  conventions:
+    name: conventions (branch names + commit messages)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@<commit-sha> # v4
+        with:
+          fetch-depth: 0
+      - uses: josnelihurt/code.examples.ci/conventions@<commit-sha> # v1
+        with:
+          branch-exempt-regex: '^dependabot/'
+```
+
+The opt-in local hooks (`.githooks/commit-msg`, `pre-push`) keep working through
+a thin per-repository shim that fetches this script at the `v1` tag via `gh` —
+one implementation, no copies to drift.
 
 ## Consuming the merge-me action
 
