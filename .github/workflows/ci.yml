@@ -28,6 +28,8 @@ jobs:
           fetch-depth: 0
 
       - uses: ./conventions
+        with:
+          branch-exempt-regex: '^dependabot/'
 
   validate:
     name: validate (shellcheck + self-test)

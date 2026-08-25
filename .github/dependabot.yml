@@ -1,0 +1,13 @@
+# Weekly action-pin updates. Dependabot's branches (dependabot/…) are exempt
+# from the branch-naming rule via the conventions action's branch-exempt-regex
+# input — their names are not ours to choose; their commits follow "ci: …",
+# which the subject rule already accepts.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+    open-pull-requests-limit: 5
