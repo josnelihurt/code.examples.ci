@@ -69,6 +69,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  workflows: write
 concurrency:
   group: merge-me-${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || github.event.pull_request.number || github.event.inputs.pr || 'manual' }}
   cancel-in-progress: true
