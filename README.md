@@ -82,3 +82,16 @@ workflow completing, or a manual dispatch. Nothing runs on a timer.
 See [AGENTS.md](AGENTS.md): stacked PRs with every level green, one commit per branch,
 `merge-me` labeled on the top layer only, and tag-based versioning (`v1`, `v2`, …) with
 consumers pinning the tag's SHA.
+
+## Consumers
+
+| Repository | Pin | Notes |
+| --- | --- | --- |
+| [code.examples.net.quotes](https://github.com/josnelihurt/code.examples.net.quotes) | `merge-me@fab8efc # v1` | migrated in #17 → #18 (stack) + #20 (repin after the race documented below) |
+| [code.examples.frontend.quotes](https://github.com/josnelihurt/code.examples.frontend.quotes) | `merge-me@fab8efc # v1` | migrated in #9 → #10 (stack); gained disarm-on-unlabel + conflict pre-checks |
+
+Migration note worth keeping: when a stack is relabeled or force-pushed around a
+pending merge, the default-branch workflow's `workflow_run` arm may merge the stack
+from branch heads it captured before the update — the net repository's first
+migration landed with a stale pin that way and needed a one-PR repin (#20 there).
+Land consumer pin changes before labeling, or expect the repin follow-up.
