@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Canonical commit-msg hook for the code.examples.* repositories: validates the
+# subject of the commit being created against the branch-and-commit rules.
+# Consuming repositories surface this script on disk — typically as a git
+# submodule (a two-line exec in their .githooks/) — so it resolves its sibling
+# checker relative to itself and needs no network and no gh at hook time.
+set -euo pipefail
+dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+subject="$(head -n 1 "$1")"
+exec bash "${dir}/check-conventions.sh" --title "${subject}"
