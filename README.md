@@ -43,9 +43,14 @@ pass the exemption those branches need:
           branch-exempt-regex: '^dependabot/'
 ```
 
-The opt-in local hooks (`.githooks/commit-msg`, `pre-push`) keep working through
-a thin per-repository shim that fetches this script at the `v1` tag via `gh` —
-one implementation, no copies to drift.
+The opt-in local hooks keep working the same way: canonical `commit-msg` and
+`pre-push` hook scripts live beside the checker
+(`conventions/scripts/commit-msg`, `conventions/scripts/pre-push`). A
+consuming repository surfaces them on disk — as this repository's git
+submodule (a two-line exec in its `.githooks/`, the preferred shape) or as a
+fetch-shim at the `v1` tag via `gh` — one implementation, no copies to drift.
+The canonical hooks resolve their sibling checker relative to themselves, so
+they run offline in either shape.
 
 One known edge: a `GITHUB_TOKEN` cannot merge a pull request that updates
 workflow files unless its app authored them (dependabot's action-pin bumps).

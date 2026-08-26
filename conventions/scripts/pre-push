@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Canonical pre-push hook for the code.examples.* repositories: blocks pushing
+# a branch that breaks the naming rule or commits whose subjects break the
+# commit rule. Everything not on origin/main is checked, so stacked branches
+# validate their whole delta. Exemptions match the written rules: main itself,
+# local-only backup/* branches, and tags. Consuming repositories surface this
+# script on disk — typically as a git submodule (a two-line exec in their
+# .githooks/) — so it resolves its sibling checker relative to itself and
+# needs no network and no gh at hook time.
+set -euo pipefail
+branch="$(git rev-parse --abbrev-ref HEAD)"
+if [[ "${branch}" == "main" || "${branch}" == "HEAD" || "${branch}" == "backup/"* ]]; then
+  exit 0
+fi
+dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+status=0
+bash "${dir}/check-conventions.sh" --branch "${branch}" || status=1
+if git rev-parse --verify -q refs/remotes/origin/main >/dev/null; then
+  bash "${dir}/check-conventions.sh" --range "origin/main..HEAD" || status=1
+fi
+exit "${status}"
